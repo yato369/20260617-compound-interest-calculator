@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Compound Interest Calculator</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="calculator-panel" aria-labelledby="page-title">
+        <div class="title-block">
+          <p class="eyebrow">Compound Calculator</p>
+          <h1 id="page-title">复利计算器</h1>
+          <p class="subtitle">选择计算方式，输入参数后点击计算，查看公式、结果和每期明细。</p>
+        </div>
+
+        <div class="tabs" role="tablist" aria-label="计算方式">
+          <button class="tab-button active" type="button" data-tab="basic" role="tab" aria-selected="true">基本</button>
+          <button class="tab-button" type="button" data-tab="plan" role="tab" aria-selected="false">定期定投</button>
+        </div>
+
+        <form class="input-grid calculator-form active" id="basic-form" data-panel="basic">
+          <label class="field">
+            <span>本金</span>
+            <input id="principal" type="number" min="0" step="0.01" value="48000" />
+          </label>
+
+          <label class="field">
+            <span>单期利率</span>
+            <div class="input-with-suffix">
+              <input id="rate" type="number" step="0.01" value="1" />
+              <span>%</span>
+            </div>
+          </label>
+
+          <label class="field">
+            <span>时间周期 / 期数</span>
+            <input id="periods" type="number" min="1" step="1" value="10" />
+          </label>
+
+          <label class="field">
+            <span>利率单位</span>
+            <select id="rate-unit">
+              <option value="year">年利率</option>
+              <option value="month">月利率</option>
+              <option value="day">日利率</option>
+              <option value="period" selected>每期利率</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>复利频率</span>
+            <select id="compound-frequency">
+              <option value="year">每年</option>
+              <option value="month">每月</option>
+              <option value="day">每日</option>
+              <option value="period" selected>每期</option>
+            </select>
+          </label>
+
+          <button class="calculate-button" type="submit">计算</button>
+        </form>
+
+        <form class="input-grid calculator-form" id="plan-form" data-panel="plan">
+          <label class="field">
+            <span>初始本金（元）</span>
+            <input id="plan-principal" type="number" step="0.01" value="1000" />
+          </label>
+
+          <div class="field">
+            <span>定投金额（元）</span>
+            <small>从第二个对应周期开始追加本金；输入负数代表定期取出。</small>
+            <div class="inline-options">
+              <label><input type="radio" name="contribution-unit" value="month" checked /> 每月</label>
+              <label><input type="radio" name="contribution-unit" value="year" /> 每年</label>
+            </div>
+            <input id="monthly-contribution" type="number" step="0.01" value="1000" />
+          </div>
+
+          <div class="field">
+            <span>投资期限</span>
+            <div class="inline-options">
+              <label><input type="radio" name="term-unit" value="year" checked /> 年</label>
+              <label><input type="radio" name="term-unit" value="month" /> 个月</label>
+            </div>
+            <input id="term-length" type="number" min="1" step="1" value="3" />
+          </div>
+
+          <div class="field">
+            <span>收益率</span>
+            <div class="inline-options">
+              <label><input type="radio" name="yield-unit" value="year" checked /> 年</label>
+              <label><input type="radio" name="yield-unit" value="month" /> 月</label>
+            </div>
+            <div class="input-with-suffix">
+              <input id="yield-rate" type="number" step="0.01" value="5" />
+              <span>%</span>
+            </div>
+          </div>
+
+          <label class="field">
+            <span>复利方式</span>
+            <select id="plan-compound-method">
+              <option value="year" selected>年复利</option>
+              <option value="month">月复利</option>
+            </select>
+          </label>
+
+          <div class="field">
+            <span>明细粒度</span>
+            <div class="inline-options">
+              <label><input type="radio" name="plan-table-unit" value="year" checked /> 年</label>
+              <label><input type="radio" name="plan-table-unit" value="month" /> 月</label>
+            </div>
+          </div>
+
+          <button class="calculate-button" type="submit">计算</button>
+        </form>
+      </section>
+
+      <section class="result-panel active" data-result="basic" aria-live="polite">
+        <div class="summary-strip">
+          <div>
+            <span>最终总额</span>
+            <strong id="final-amount">-</strong>
+          </div>
+          <div>
+            <span>累计收益</span>
+            <strong id="total-profit">-</strong>
+          </div>
+          <div>
+            <span>总收益率</span>
+            <strong id="total-return">-</strong>
+          </div>
+        </div>
+
+        <div class="formula-box">
+          <span>公式算法</span>
+          <code id="formula-text">-</code>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>收益（元）</th>
+                <th>总额（元）</th>
+                <th>收益率</th>
+              </tr>
+            </thead>
+            <tbody id="period-table"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="result-panel" data-result="plan" aria-live="polite">
+        <div class="summary-strip plan-summary">
+          <div>
+            <span>总收益</span>
+            <strong id="plan-profit">-</strong>
+          </div>
+          <div>
+            <span>最终金额</span>
+            <strong id="plan-final">-</strong>
+          </div>
+          <div>
+            <span>总投资额</span>
+            <strong id="plan-invested">-</strong>
+          </div>
+        </div>
+
+        <div class="formula-box">
+          <span>公式算法</span>
+          <code id="plan-formula">-</code>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th id="plan-index-label">年</th>
+                <th>本金（元）</th>
+                <th>收益（元）</th>
+                <th>最终金额（元）</th>
+              </tr>
+            </thead>
+            <tbody id="plan-table"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
