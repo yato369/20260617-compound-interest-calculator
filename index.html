@@ -18,6 +18,7 @@
         <div class="tabs" role="tablist" aria-label="计算方式">
           <button class="tab-button active" type="button" data-tab="basic" role="tab" aria-selected="true">基本</button>
           <button class="tab-button" type="button" data-tab="plan" role="tab" aria-selected="false">定期定投</button>
+          <button class="tab-button" type="button" data-tab="cashflow" role="tab" aria-selected="false">现金流规划</button>
         </div>
 
         <form class="input-grid calculator-form active" id="basic-form" data-panel="basic">
@@ -117,6 +118,105 @@
 
           <button class="calculate-button" type="submit">计算</button>
         </form>
+
+        <form class="input-grid calculator-form" id="cashflow-form" data-panel="cashflow">
+          <label class="field">
+            <span>起始年龄</span>
+            <input id="cash-start-age" type="number" min="0" step="1" value="30" />
+          </label>
+
+          <div class="field">
+            <span>缴费期限</span>
+            <div class="inline-options">
+              <label><input type="radio" name="cash-pay-unit" value="year" checked /> 年</label>
+              <label><input type="radio" name="cash-pay-unit" value="month" /> 月</label>
+            </div>
+            <input id="cash-pay-length" type="number" min="0" step="1" value="10" />
+          </div>
+
+          <div class="field">
+            <span>留存期限</span>
+            <div class="inline-options">
+              <label><input type="radio" name="cash-hold-unit" value="year" checked /> 年</label>
+              <label><input type="radio" name="cash-hold-unit" value="month" /> 月</label>
+            </div>
+            <input id="cash-hold-length" type="number" min="0" step="1" value="20" />
+          </div>
+
+          <div class="field">
+            <span>领取期限</span>
+            <small>用于模拟固定领取年限；如果产品是终身领取，可以先填预计领取年限。</small>
+            <div class="inline-options">
+              <label><input type="radio" name="cash-withdraw-unit" value="year" checked /> 年</label>
+              <label><input type="radio" name="cash-withdraw-unit" value="month" /> 月</label>
+            </div>
+            <input id="cash-withdraw-length" type="number" min="1" step="1" value="20" />
+          </div>
+
+          <div class="field">
+            <span>每期缴费金额（元）</span>
+            <div class="inline-options">
+              <label><input type="radio" name="cash-premium-unit" value="year" checked /> 每年</label>
+              <label><input type="radio" name="cash-premium-unit" value="month" /> 每月</label>
+            </div>
+            <input id="cash-premium" type="number" step="0.01" value="10000" />
+          </div>
+
+          <div class="field">
+            <span>每期领取金额（元）</span>
+            <div class="inline-options">
+              <label><input type="radio" name="cash-income-unit" value="year" checked /> 每年</label>
+              <label><input type="radio" name="cash-income-unit" value="month" /> 每月</label>
+            </div>
+            <input id="cash-income" type="number" step="0.01" value="29800" />
+          </div>
+
+          <div class="field">
+            <span>预期收益率</span>
+            <div class="inline-options">
+              <label><input type="radio" name="cash-rate-unit" value="year" checked /> 年</label>
+              <label><input type="radio" name="cash-rate-unit" value="month" /> 月</label>
+            </div>
+            <div class="input-with-suffix">
+              <input id="cash-rate" type="number" step="0.01" value="3.5" />
+              <span>%</span>
+            </div>
+          </div>
+
+          <label class="field">
+            <span>复利方式</span>
+            <select id="cash-compound-method">
+              <option value="year" selected>年复利</option>
+              <option value="month">月复利</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>缴费发生时间</span>
+            <select id="cash-premium-timing">
+              <option value="start" selected>期初</option>
+              <option value="end">期末</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>领取发生时间</span>
+            <select id="cash-income-timing">
+              <option value="start" selected>期初</option>
+              <option value="end">期末</option>
+            </select>
+          </label>
+
+          <div class="field">
+            <span>明细粒度</span>
+            <div class="inline-options">
+              <label><input type="radio" name="cash-table-unit" value="year" checked /> 年</label>
+              <label><input type="radio" name="cash-table-unit" value="month" /> 月</label>
+            </div>
+          </div>
+
+          <button class="calculate-button" type="submit">计算</button>
+        </form>
       </section>
 
       <section class="result-panel active" data-result="basic" aria-live="polite">
@@ -187,6 +287,55 @@
               </tr>
             </thead>
             <tbody id="plan-table"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="result-panel" data-result="cashflow" aria-live="polite">
+        <div class="summary-strip cashflow-summary">
+          <div>
+            <span>总缴费</span>
+            <strong id="cash-total-paid">-</strong>
+          </div>
+          <div>
+            <span>开始领取时价值</span>
+            <strong id="cash-start-value">-</strong>
+          </div>
+          <div>
+            <span>总领取</span>
+            <strong id="cash-total-income">-</strong>
+          </div>
+          <div>
+            <span>最终现金价值</span>
+            <strong id="cash-final-value">-</strong>
+          </div>
+        </div>
+
+        <div class="chart-panel">
+          <span>现金价值图表</span>
+          <svg id="cash-chart" viewBox="0 0 720 260" role="img" aria-label="现金价值折线图"></svg>
+        </div>
+
+        <div class="formula-box">
+          <span>公式算法</span>
+          <code id="cash-formula">-</code>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th id="cash-index-label">年龄</th>
+                <th>阶段</th>
+                <th>缴费（元）</th>
+                <th>领取（元）</th>
+                <th>收益（元）</th>
+                <th>期末现金价值（元）</th>
+                <th>累计缴费（元）</th>
+                <th>累计领取（元）</th>
+              </tr>
+            </thead>
+            <tbody id="cash-table"></tbody>
           </table>
         </div>
       </section>

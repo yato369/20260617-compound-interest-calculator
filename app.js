@@ -3,6 +3,7 @@ const forms = document.querySelectorAll(".calculator-form");
 const resultPanels = document.querySelectorAll(".result-panel");
 const basicForm = document.querySelector("#basic-form");
 const planForm = document.querySelector("#plan-form");
+const cashflowForm = document.querySelector("#cashflow-form");
 
 const basicFields = {
   principal: document.querySelector("#principal"),
@@ -37,6 +38,30 @@ const planOutput = {
   table: document.querySelector("#plan-table"),
 };
 
+const cashFields = {
+  startAge: document.querySelector("#cash-start-age"),
+  payLength: document.querySelector("#cash-pay-length"),
+  holdLength: document.querySelector("#cash-hold-length"),
+  withdrawLength: document.querySelector("#cash-withdraw-length"),
+  premium: document.querySelector("#cash-premium"),
+  income: document.querySelector("#cash-income"),
+  rate: document.querySelector("#cash-rate"),
+  compoundMethod: document.querySelector("#cash-compound-method"),
+  premiumTiming: document.querySelector("#cash-premium-timing"),
+  incomeTiming: document.querySelector("#cash-income-timing"),
+};
+
+const cashOutput = {
+  totalPaid: document.querySelector("#cash-total-paid"),
+  startValue: document.querySelector("#cash-start-value"),
+  totalIncome: document.querySelector("#cash-total-income"),
+  finalValue: document.querySelector("#cash-final-value"),
+  formula: document.querySelector("#cash-formula"),
+  chart: document.querySelector("#cash-chart"),
+  indexLabel: document.querySelector("#cash-index-label"),
+  table: document.querySelector("#cash-table"),
+};
+
 const periodFactors = {
   year: 1,
   month: 12,
@@ -58,6 +83,14 @@ function toNumber(input, fallback = 0) {
 
 function selectedRadio(name) {
   return document.querySelector(`input[name="${name}"]:checked`).value;
+}
+
+function toWholeNumber(input, fallback = 0) {
+  return Math.max(0, Math.floor(toNumber(input, fallback)));
+}
+
+function monthsFromUnit(value, unit) {
+  return unit === "year" ? value * 12 : value;
 }
 
 function formatMoney(value) {
@@ -327,6 +360,271 @@ function calculatePlan() {
   }).join("");
 }
 
+function renderCashInvalid(message) {
+  cashOutput.totalPaid.textContent = "-";
+  cashOutput.startValue.textContent = "-";
+  cashOutput.totalIncome.textContent = "-";
+  cashOutput.finalValue.textContent = "-";
+  cashOutput.formula.textContent = message;
+  cashOutput.chart.innerHTML = "";
+  cashOutput.table.innerHTML = "";
+}
+
+function isUnitEvent(month, startMonth, lengthMonths, unit, timing) {
+  if (month < startMonth || month >= startMonth + lengthMonths) {
+    return false;
+  }
+
+  const offset = month - startMonth;
+
+  if (unit === "month") {
+    return true;
+  }
+
+  if (timing === "start") {
+    return offset % 12 === 0;
+  }
+
+  return offset % 12 === 11 || month === startMonth + lengthMonths - 1;
+}
+
+function getCashStage(month, payMonths, holdMonths) {
+  if (month <= payMonths) {
+    return "缴费";
+  }
+
+  if (month <= payMonths + holdMonths) {
+    return "留存";
+  }
+
+  return "领取";
+}
+
+function cashRowLabel(month, startAge, tableUnit) {
+  if (tableUnit === "year") {
+    return startAge + Math.ceil(month / 12);
+  }
+
+  const age = startAge + Math.floor((month - 1) / 12);
+  const monthInAge = ((month - 1) % 12) + 1;
+  return `${age}岁${monthInAge}月`;
+}
+
+function shouldSnapshotCash(month, totalMonths, tableUnit) {
+  return tableUnit === "month" || month % 12 === 0 || month === totalMonths;
+}
+
+function renderCashChart(rows) {
+  if (!rows.length) {
+    cashOutput.chart.innerHTML = "";
+    return;
+  }
+
+  const width = 720;
+  const height = 260;
+  const pad = 34;
+  const values = rows.map((row) => row.balance);
+  const minValue = Math.min(0, ...values);
+  const maxValue = Math.max(1, ...values);
+  const span = maxValue - minValue || 1;
+
+  const points = rows.map((row, index) => {
+    const x = rows.length === 1 ? width / 2 : pad + (index / (rows.length - 1)) * (width - pad * 2);
+    const y = height - pad - ((row.balance - minValue) / span) * (height - pad * 2);
+    return { x, y, row };
+  });
+
+  const path = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(" ");
+  const zeroY = height - pad - ((0 - minValue) / span) * (height - pad * 2);
+  const first = points[0];
+  const last = points[points.length - 1];
+
+  cashOutput.chart.innerHTML = `
+    <line x1="${pad}" y1="${zeroY.toFixed(2)}" x2="${width - pad}" y2="${zeroY.toFixed(2)}" class="chart-zero"></line>
+    <path d="${path}" class="chart-line"></path>
+    <circle cx="${first.x.toFixed(2)}" cy="${first.y.toFixed(2)}" r="4" class="chart-point"></circle>
+    <circle cx="${last.x.toFixed(2)}" cy="${last.y.toFixed(2)}" r="5" class="chart-point chart-point-last"></circle>
+    <text x="${pad}" y="22" class="chart-label">最高 ${formatMoney(maxValue)}</text>
+    <text x="${width - pad}" y="${height - 10}" text-anchor="end" class="chart-label">期末 ${formatMoney(last.row.balance)}</text>
+  `;
+}
+
+function calculateCashflow() {
+  const startAge = toWholeNumber(cashFields.startAge, 30);
+  const payLength = toWholeNumber(cashFields.payLength, 10);
+  const holdLength = toWholeNumber(cashFields.holdLength, 20);
+  const withdrawLength = Math.max(1, toWholeNumber(cashFields.withdrawLength, 20));
+  const premium = toNumber(cashFields.premium);
+  const income = toNumber(cashFields.income);
+  const ratePercent = toNumber(cashFields.rate);
+  const payUnit = selectedRadio("cash-pay-unit");
+  const holdUnit = selectedRadio("cash-hold-unit");
+  const withdrawUnit = selectedRadio("cash-withdraw-unit");
+  const premiumUnit = selectedRadio("cash-premium-unit");
+  const incomeUnit = selectedRadio("cash-income-unit");
+  const rateUnit = selectedRadio("cash-rate-unit");
+  const tableUnit = selectedRadio("cash-table-unit");
+  const compoundMethod = cashFields.compoundMethod.value;
+  const premiumTiming = cashFields.premiumTiming.value;
+  const incomeTiming = cashFields.incomeTiming.value;
+  const payMonths = monthsFromUnit(payLength, payUnit);
+  const holdMonths = monthsFromUnit(holdLength, holdUnit);
+  const withdrawMonths = monthsFromUnit(withdrawLength, withdrawUnit);
+  const totalMonths = payMonths + holdMonths + withdrawMonths;
+  const withdrawStartMonth = payMonths + holdMonths + 1;
+  const monthlyRate = compoundMethod === "year"
+    ? getNominalMonthlyRate(ratePercent, rateUnit)
+    : getMonthlyRate(ratePercent, rateUnit);
+
+  cashFields.startAge.value = startAge;
+  cashFields.payLength.value = payLength;
+  cashFields.holdLength.value = holdLength;
+  cashFields.withdrawLength.value = withdrawLength;
+  cashOutput.indexLabel.textContent = tableUnit === "year" ? "年龄" : "年龄/月";
+
+  if (!Number.isFinite(premium) || !Number.isFinite(income)) {
+    renderCashInvalid("请输入有效的缴费金额和领取金额。");
+    return;
+  }
+
+  if (!Number.isFinite(monthlyRate) || monthlyRate <= -1) {
+    renderCashInvalid("收益率不能让每月倍率小于或等于 0。");
+    return;
+  }
+
+  if (totalMonths <= 0) {
+    renderCashInvalid("总周期必须大于 0。");
+    return;
+  }
+
+  let balance = 0;
+  let totalPaid = 0;
+  let totalIncome = 0;
+  let startWithdrawValue = 0;
+  let yearAccruedInterest = 0;
+  let periodPaid = 0;
+  let periodIncome = 0;
+  let periodInterest = 0;
+  const rows = [];
+
+  for (let month = 1; month <= totalMonths; month += 1) {
+    const stage = getCashStage(month, payMonths, holdMonths);
+    const premiumDue = isUnitEvent(month, 1, payMonths, premiumUnit, premiumTiming);
+    const incomeDue = isUnitEvent(month, withdrawStartMonth, withdrawMonths, incomeUnit, incomeTiming);
+
+    if (premiumDue && premiumTiming === "start") {
+      balance += premium;
+      totalPaid += premium;
+      periodPaid += premium;
+    }
+
+    if (incomeDue && incomeTiming === "start") {
+      balance -= income;
+      totalIncome += income;
+      periodIncome += income;
+    }
+
+    const interest = balance * monthlyRate;
+
+    if (compoundMethod === "year") {
+      yearAccruedInterest += interest;
+      periodInterest += interest;
+
+      if (month % 12 === 0 || month === totalMonths) {
+        balance += yearAccruedInterest;
+        yearAccruedInterest = 0;
+      }
+    } else {
+      balance += interest;
+      periodInterest += interest;
+    }
+
+    if (premiumDue && premiumTiming === "end") {
+      balance += premium;
+      totalPaid += premium;
+      periodPaid += premium;
+    }
+
+    if (incomeDue && incomeTiming === "end") {
+      balance -= income;
+      totalIncome += income;
+      periodIncome += income;
+    }
+
+    if (month === payMonths + holdMonths) {
+      startWithdrawValue = balance;
+    }
+
+    if (shouldSnapshotCash(month, totalMonths, tableUnit)) {
+      rows.push({
+        label: cashRowLabel(month, startAge, tableUnit),
+        stage,
+        paid: periodPaid,
+        income: periodIncome,
+        interest: periodInterest,
+        balance,
+        totalPaid,
+        totalIncome,
+      });
+
+      periodPaid = 0;
+      periodIncome = 0;
+      periodInterest = 0;
+    }
+  }
+
+  if (payMonths + holdMonths === 0) {
+    startWithdrawValue = rows[0]?.balance ?? balance;
+  }
+
+  cashOutput.totalPaid.textContent = formatCurrency(totalPaid);
+  cashOutput.startValue.textContent = formatCurrency(startWithdrawValue);
+  cashOutput.totalIncome.textContent = formatCurrency(totalIncome);
+  cashOutput.finalValue.textContent = formatCurrency(balance);
+  cashOutput.finalValue.className = balance >= 0 ? "plan-final-positive" : "profit-negative";
+
+  const payText = `${payLength}${payUnit === "year" ? "年" : "个月"}`;
+  const holdText = `${holdLength}${holdUnit === "year" ? "年" : "个月"}`;
+  const withdrawText = `${withdrawLength}${withdrawUnit === "year" ? "年" : "个月"}`;
+  const premiumText = `${premiumUnit === "year" ? "每年" : "每月"}缴费 ${formatCurrency(premium)}（${premiumTiming === "start" ? "期初" : "期末"}）`;
+  const incomeText = `${incomeUnit === "year" ? "每年" : "每月"}领取 ${formatCurrency(income)}（${incomeTiming === "start" ? "期初" : "期末"}）`;
+  const rateText = `${rateUnit === "year" ? "年收益率" : "月收益率"} = ${formatPercent(ratePercent)}`;
+  const compoundText = compoundMethod === "year" ? "年复利：按月累计收益，年底或最后一期结息" : "月复利：每月结息";
+  const withdrawAge = startAge + (payMonths + holdMonths) / 12;
+
+  cashOutput.formula.textContent = [
+    `总期数（月） = 缴费 ${payMonths} + 留存 ${holdMonths} + 领取 ${withdrawMonths} = ${totalMonths}`,
+    `领取开始年龄 = ${withdrawAge.toLocaleString("zh-CN", { maximumFractionDigits: 2 })} 岁`,
+    rateText,
+    `折算每月计息利率 = ${formatPercent(monthlyRate * 100)}`,
+    `缴费期：${premiumText}，持续 ${payText}`,
+    `留存期：不缴费不领取，持续 ${holdText}`,
+    `领取期：${incomeText}，持续 ${withdrawText}`,
+    compoundText,
+    `期末现金价值 = 上期现金价值 + 缴费 - 领取 + 当期收益`,
+  ].join("\n");
+
+  cashOutput.table.innerHTML = rows.map((row) => {
+    const interestClass = row.interest >= 0 ? "profit-positive" : "profit-negative";
+    const balanceClass = row.balance >= 0 ? "plan-final-cell" : "profit-negative";
+
+    return `
+      <tr>
+        <td>${row.label}</td>
+        <td>${row.stage}</td>
+        <td>${formatMoney(row.paid)}</td>
+        <td>${formatMoney(row.income)}</td>
+        <td class="${interestClass}">${row.interest >= 0 ? "+" : "-"}${formatMoney(Math.abs(row.interest))}</td>
+        <td class="${balanceClass}">${formatMoney(row.balance)}</td>
+        <td>${formatMoney(row.totalPaid)}</td>
+        <td>${formatMoney(row.totalIncome)}</td>
+      </tr>
+    `;
+  }).join("");
+
+  renderCashChart(rows);
+}
+
 tabButtons.forEach((button) => {
   button.addEventListener("click", () => setActiveTab(button.dataset.tab));
 });
@@ -341,9 +639,20 @@ planForm.addEventListener("submit", (event) => {
   calculatePlan();
 });
 
+cashflowForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  calculateCashflow();
+});
+
+cashflowForm.querySelectorAll("input, select").forEach((field) => {
+  field.addEventListener("input", calculateCashflow);
+  field.addEventListener("change", calculateCashflow);
+});
+
 document.querySelectorAll('input[name="contribution-unit"]').forEach((radio) => {
   radio.addEventListener("change", calculatePlan);
 });
 
 calculateBasic();
 calculatePlan();
+calculateCashflow();

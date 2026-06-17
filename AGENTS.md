@@ -2,15 +2,17 @@
 
 ## Purpose
 
-A local web calculator for compound interest and scheduled contributions that
-shows the formula, result, and period-by-period growth table for users who want
-to test principal, rate, contribution, and time assumptions quickly.
+A local web calculator for compound interest, scheduled contributions, and
+long-term cash flow planning that shows the formula, result, and period-by-period
+growth table for users who want to test principal, rate, contribution, withdrawal,
+and time assumptions quickly.
 
 ## Structure
 
 - `index.html`: page structure and form fields
 - `styles.css`: visual layout and responsive styles
-- `app.js`: compound interest and scheduled contribution calculations on submit
+- `app.js`: compound interest, scheduled contribution, and cash flow calculations
+  on submit
 
 ## Commands
 

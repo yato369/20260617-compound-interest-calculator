@@ -90,7 +90,7 @@ h1 {
 
 .tabs {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
   margin-top: 26px;
 }
@@ -274,7 +274,7 @@ h1 {
 
 table {
   width: 100%;
-  min-width: 560px;
+  min-width: 720px;
   border-collapse: collapse;
 }
 
@@ -319,6 +319,64 @@ tbody tr:last-child td {
   font-size: clamp(1.45rem, 3.1vw, 2.35rem);
 }
 
+.cashflow-summary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.cashflow-summary strong {
+  font-size: clamp(1.1rem, 2.3vw, 1.75rem);
+}
+
+.chart-panel {
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.chart-panel span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.86rem;
+  margin-bottom: 10px;
+}
+
+.chart-panel svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 220px;
+  overflow: visible;
+}
+
+.chart-zero {
+  stroke: #d6ddd7;
+  stroke-width: 1;
+}
+
+.chart-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.chart-point {
+  fill: var(--accent);
+}
+
+.chart-point-last {
+  fill: #ff6b2b;
+}
+
+.chart-label {
+  fill: var(--muted);
+  font-size: 13px;
+  font-family: "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
+}
+
 .plan-final-positive,
 .plan-final-cell {
   color: #ff6b2b;
@@ -336,6 +394,14 @@ tbody tr:last-child td {
 
   .summary-strip {
     grid-template-columns: 1fr;
+  }
+
+  .tabs {
+    gap: 6px;
+  }
+
+  .tab-button {
+    font-size: 0.9rem;
   }
 
   .summary-strip div {
